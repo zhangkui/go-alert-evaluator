@@ -54,8 +54,23 @@ func (s *SeriesStore) Write(metric string, labels model.Labels, sample model.Sam
 	key := model.SeriesKey{Metric: metric, Labels: CanonicalLabels(labels)}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	points := append(s.series[key], sample)
-	sort.Slice(points, func(i, j int) bool { return points[i].Timestamp.Before(points[j].Timestamp) })
+	points := s.series[key]
+	// The slice is kept in ascending timestamp order, so binary search locates
+	// where the new sample belongs. A point is uniquely identified by the
+	// (metric, canonical labels, timestamp) triple: writing the same timestamp
+	// again must idempotently overwrite the existing value with the latest one
+	// rather than append a duplicate, so window cardinality is not inflated.
+	idx := sort.Search(len(points), func(i int) bool {
+		return !points[i].Timestamp.Before(sample.Timestamp)
+	})
+	if idx < len(points) && points[idx].Timestamp.Equal(sample.Timestamp) {
+		points[idx].Value = sample.Value
+		return nil
+	}
+	// No existing point at this timestamp: insert while preserving ascending order.
+	points = append(points, model.Sample{})
+	copy(points[idx+1:], points[idx:])
+	points[idx] = sample
 	s.series[key] = points
 	return nil
 }
