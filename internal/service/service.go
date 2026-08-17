@@ -43,8 +43,14 @@ func (s *Service) EvaluateBatch(ctx context.Context, ruleIDs []string, at time.T
 	}
 	results := make([]model.Evaluation, 0, len(ruleIDs))
 	for _, ruleID := range ruleIDs {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		result, err := s.Evaluate(ruleID, at)
 		if err != nil {
+			return nil, err
+		}
+		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		results = append(results, result)
