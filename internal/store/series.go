@@ -54,8 +54,18 @@ func (s *SeriesStore) Write(metric string, labels model.Labels, sample model.Sam
 	key := model.SeriesKey{Metric: metric, Labels: CanonicalLabels(labels)}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	points := append(s.series[key], sample)
-	sort.Slice(points, func(i, j int) bool { return points[i].Timestamp.Before(points[j].Timestamp) })
+	points := s.series[key]
+	index := sort.Search(len(points), func(i int) bool {
+		return !points[i].Timestamp.Before(sample.Timestamp)
+	})
+	if index < len(points) && points[index].Timestamp.Equal(sample.Timestamp) {
+		points[index] = sample
+		s.series[key] = points
+		return nil
+	}
+	points = append(points, model.Sample{})
+	copy(points[index+1:], points[index:])
+	points[index] = sample
 	s.series[key] = points
 	return nil
 }
