@@ -19,7 +19,10 @@ type Result struct {
 func Aggregate(kind model.Aggregation, samples []model.Sample, windowStart time.Time) (Result, error) {
 	filtered := samples[:0]
 	for _, sample := range samples {
-		if sample.Timestamp.After(windowStart) {
+		// Window start is inclusive: a sample at exactly windowStart participates,
+		// while any sample strictly before it (even by 1ns) is excluded. The window
+		// end is bounded by the caller, so end samples are kept here unconditionally.
+		if !sample.Timestamp.Before(windowStart) {
 			filtered = append(filtered, sample)
 		}
 	}
