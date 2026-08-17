@@ -19,7 +19,7 @@ type Result struct {
 func Aggregate(kind model.Aggregation, samples []model.Sample, windowStart time.Time) (Result, error) {
 	filtered := samples[:0]
 	for _, sample := range samples {
-		if sample.Timestamp.After(windowStart) {
+		if !sample.Timestamp.Before(windowStart) {
 			filtered = append(filtered, sample)
 		}
 	}
