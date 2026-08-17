@@ -34,10 +34,15 @@ func (s *Store) Active(labels model.Labels, at time.Time) (model.Silence, bool) 
 		if at.Before(item.StartsAt) || !at.Before(item.EndsAt) {
 			continue
 		}
+		matched := true
 		for key, expected := range item.Matchers {
-			if labels[key] == expected {
-				return item, true
+			if labels[key] != expected {
+				matched = false
+				break
 			}
+		}
+		if matched {
+			return item, true
 		}
 	}
 	return model.Silence{}, false

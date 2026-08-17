@@ -31,3 +31,31 @@ func TestEvaluateTransitionsPendingToFiring(t *testing.T) {
 		t.Fatalf("expected firing: %#v, %v", second, err)
 	}
 }
+
+func TestPartialSilenceMatchDoesNotSuppressNotificationOrHistory(t *testing.T) {
+	now := time.Date(2026, 8, 17, 8, 0, 0, 0, time.UTC)
+	series := store.NewSeriesStore(time.Hour)
+	labels := model.Labels{"service": "api", "region": "east"}
+	if err := series.Write("latency", labels, model.Sample{Timestamp: now, Value: 100}, now); err != nil {
+		t.Fatal(err)
+	}
+	silences := silence.NewStore()
+	if err := silences.Add(model.Silence{ID: "west-api", Matchers: model.Labels{"service": "api", "region": "west"}, StartsAt: now.Add(-time.Minute), EndsAt: now.Add(time.Minute)}); err != nil {
+		t.Fatal(err)
+	}
+	engine := New(series, silences, nil)
+	if err := engine.AddRule(model.Rule{ID: "r1", Metric: "latency", Labels: labels, Aggregation: model.AggregationMaximum, Comparator: model.ComparatorAbove, Threshold: 50, Window: time.Minute}); err != nil {
+		t.Fatal(err)
+	}
+	evaluation, err := engine.Evaluate("r1", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if evaluation.Notification != "firing" || !evaluation.NotificationSent {
+		t.Fatalf("expected notification to be sent, got %#v", evaluation)
+	}
+	history := engine.History("r1")
+	if len(history) != 1 || history[0].Notification != "firing" || history[0].NotificationSent != true {
+		t.Fatalf("unexpected history: %#v", history)
+	}
+}
