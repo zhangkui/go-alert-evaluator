@@ -93,12 +93,12 @@ func (e *Engine) Evaluate(ruleID string, at time.Time) (model.Evaluation, error)
 		}
 	} else {
 		current.pendingSince = time.Time{}
-		if current.state == model.StateFiring && rule.RecoverFor > 0 {
-			if current.recoverSince.IsZero() {
-				current.recoverSince = at
-			}
+		if current.state != model.StateFiring || rule.RecoverFor == 0 {
 			current.state = model.StateNormal
-		} else {
+			current.recoverSince = time.Time{}
+		} else if current.recoverSince.IsZero() {
+			current.recoverSince = at
+		} else if at.Sub(current.recoverSince) >= rule.RecoverFor {
 			current.state = model.StateNormal
 			current.recoverSince = time.Time{}
 		}
