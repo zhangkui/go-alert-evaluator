@@ -24,11 +24,14 @@ docker run --rm -it --platform linux/arm64 go-alert-evaluator-bug4-candidate bas
 
 ## 4. 题目验证命令
 
-```bash
-go test -buildvcs=false -count=1 -run "TestSilenceRequiresEveryMatcher" ./internal/silence/
-go test -buildvcs=false -count=1 ./...
-go build -buildvcs=false ./...
-```
+该 diagnosis candidate 保持原始源码以供复现；构建预期退出码为 0，目标验证、私有验证和全量测试预期为非 0。
+
+``bash
+GOTOOLCHAIN=local go build -buildvcs=false ./...
+GOTOOLCHAIN=local go test -buildvcs=false -count=1 -run "Test
+GOTOOLCHAIN=local go test -buildvcs=false -count=20 -run private ./...
+GOTOOLCHAIN=local go test -buildvcs=false -count=1 ./...
+``
 
 ## 5. Bug 复现
 
