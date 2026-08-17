@@ -97,7 +97,13 @@ func (e *Engine) Evaluate(ruleID string, at time.Time) (model.Evaluation, error)
 			if current.recoverSince.IsZero() {
 				current.recoverSince = at
 			}
-			current.state = model.StateNormal
+			if at.Sub(current.recoverSince) >= rule.RecoverFor {
+				current.state = model.StateNormal
+				current.recoverSince = time.Time{}
+			}
+			// Otherwise stay Firing while recovery is in progress. A breach
+			// in the meantime resets recoverSince via the branch above, so the
+			// timer restarts on the next healthy evaluation.
 		} else {
 			current.state = model.StateNormal
 			current.recoverSince = time.Time{}
